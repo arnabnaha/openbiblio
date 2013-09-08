@@ -1,0 +1,66 @@
+.title "Copy Search (Extended)"
+.category "Cataloging"
+.layout labels title="Multi A4 1x16 Avery L7674"
+.layout labels_a4_3x7 title="A4 3x7 Avery L7160"
+.layout labels_a4l_13x5 title="Spine A4 landscape 13x5 Avery L7651"
+.column copyid hidden
+.column bibid hidden
+.column barcode_nmbr title="Barcode" sort=barcode_nmbr
+.column callno title="Call Num." sort=callno
+.column author title="Author" sort=author
+.column title func=biblio_link title="Title" sort=title
+.column collection title="Collection"
+.column status_begin_dt title="Status Begin Date" sort=status_begin_dt
+.parameters
+.	string barcode title="Barcode Starts With"
+.	string callno title="Call Num. Starts With"
+.	date newer title="Newer than"
+.	select status default=any title="Status"
+.		item any title=Any
+.		sql
+			SELECT code AS value, description AS title FROM biblio_status_dm
+.		end sql
+.	end select
+.	date status_begin_dt title="Status Begin Date since"
+.	order_by default=multi1
+.		item multi1 title="Collection, Call Number, Author, Title" type=multi expr="collection, callno, author, title"
+.		item multi2 title="Call Number, Author, Title" type=multi expr="callno, author, title"
+.		item author title="Author"
+.		item barcode_nmbr title="Barcode"
+.		item callno title="Call Number"
+.		item collection title="Collection"
+.		item status_begin_dt title="Status Begin Date"
+.		item title title="Title"
+.	end order_by
+.end parameters
+
+.sql
+	select c.*, concat_ws(' ', b.call_nmbr1, b.call_nmbr2, b.call_nmbr3) callno,
+		b.title, b.author, coll.description collection 
+	from (biblio_copy c, biblio b, collection_dm coll)
+	where b.bibid=c.bibid and coll.code=b.collection_cd
+.	if_set barcode
+		and c.barcode_nmbr like '%"barcode%%%'
+.	end if_set
+.	if_set callno
+		and concat_ws(' ', b.call_nmbr1, b.call_nmbr2, b.call_nmbr3) like '%"callno%%%'
+.	end if_set
+.	if_set newer
+		and c.create_dt >= %newer%
+.	end if_set
+.	if_set status
+.		if_not_equal status any
+			and c.status_cd = %status%
+.		end if_set
+.	end if_set
+.	if_set status_begin_dt
+		and c.status_begin_dt >= %status_begin_dt%
+.	end if_set
+.	order_by_expr
+.subselect marcfields
+	select tag, subfield_cd, field_data
+	from biblio_field
+	where bibid = %bibid%
+	order by tag, subfield_cd, fieldid
+.end subselect
+.end sql
